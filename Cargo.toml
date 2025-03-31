@@ -1,0 +1,7 @@
+[package]
+name = "trompyst"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lambda_calculus = "3.3.0"
