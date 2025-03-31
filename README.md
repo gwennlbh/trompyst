@@ -4,12 +4,12 @@ A planned Rust+WASM+JS+Typst package for rendering [Tromp diagrams](https://trom
 
 Currently:
 
-- [ ] PoC rust binary
+- [x] PoC rust binary
     - [x] True / false / identity
     - [x] Church numerals
     - [x] S combinator
     - [x] Y combinator
-    - [ ] Pred
+    - [x] Pred
     - [x] Omega
 - [ ] Rust library
 - [ ] WASM library

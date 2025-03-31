@@ -1,12 +1,11 @@
-#![feature(box_patterns)]
+use lambda_calculus::{
+    combinators::{I, K, S, Y},
+    data::{boolean, num::church::pred},
+    *,
+};
+use std::fmt::Display;
 
-use lambda_calculus::combinators::{I, S, Y};
-use lambda_calculus::data::num::church::{fac, pred};
-use lambda_calculus::{combinators::K, data::boolean, *};
-use std::fmt::{Display, Write};
-use std::vec;
-
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 macro_rules! debugln {
     ($($arg:tt)*) => {
@@ -38,8 +37,8 @@ fn main() {
         // 3.into_church(),
         // 4.into_church(),
         pred(),
-        // parse("λn.λf.n(λf.λn.n(f(λf.λx.n f(f x))))(λx.f)(λx.x)", Classic).unwrap(),
-        // parse("(λ11)(λ11)", DeBruijn).unwrap(),
+        parse("λn.λf.n(λf.λn.n(f(λf.λx.n f(f x))))(λx.f)(λx.x)", Classic).unwrap(),
+        parse("(λ11)(λ11)", DeBruijn).unwrap(),
     ];
     for term in terms {
         println!("{0} = {0:?}", term);
@@ -47,29 +46,18 @@ fn main() {
     }
 }
 
-fn variable_connections(term: &Term) -> Vec<Option<usize>> {
-    fn variables_dont_pierce(term: &Term, depth: usize, max_depth: usize) -> Vec<Option<usize>> {
-        match term {
-            App(box (lhs, rhs)) => {
-                let mut vars = variables_dont_pierce(lhs, depth, max_depth);
-                vars.extend(variables_dont_pierce(rhs, depth, max_depth));
-                vars
-            }
-            Abs(box body) => variable_connections(body)
-                .iter()
-                .map(|maybe_var| match maybe_var {
-                    None => None,
-                    // Let vars pierce thru abstraction if they are bound to an abstraction above
-                    Some(var) if *var > max_depth + 1 => Some(*var),
-                    Some(_) => None,
-                })
-                .collect(),
-            Var(index) => vec![Some(*index)],
-        }
-    }
+/// Returns array of (number of abstractions the variable is under, debruijn index)
+fn variable_connections(term: &Term, depth: usize) -> Vec<(usize, usize)> {
     match term {
-        Abs(box body) => variable_connections(body),
-        _ => variables_dont_pierce(term, 0, max_depth(term)),
+        App(boxed) => match boxed.as_ref() {
+            (lhs, rhs) => {
+                let mut result = variable_connections(lhs, depth);
+                result.extend(variable_connections(rhs, depth));
+                result
+            }
+        },
+        Abs(boxed) => variable_connections(boxed.as_ref(), depth + 1),
+        Var(index) => vec![(depth, *index)],
     }
 }
 
@@ -94,24 +82,46 @@ impl Display for Diagram {
 }
 
 fn max_depth(term: &Term) -> usize {
-    fn get_max_depth(term: &Term, depth: usize) -> usize {
-        debugln!("get_max_depth({:?}, {})", term, depth);
-        match term {
-            App(box (lhs, rhs)) => get_max_depth(lhs, depth).max(get_max_depth(rhs, depth)),
-            Abs(box body) => get_max_depth(body, depth + 1),
-            Var(_) => depth,
-        }
+    match term {
+        App(boxed) => match boxed.as_ref() {
+            (lhs, rhs) => max_depth(lhs).max(max_depth(rhs)),
+        },
+        Abs(boxed) => 1 + max_depth(boxed.as_ref()),
+        Var(_) => 0,
     }
-    get_max_depth(term, 0)
+}
+
+#[test]
+fn test_max_depth() {
+    let results = vec![
+        (I(), 1),
+        (K(), 2),
+        (S(), 3),
+        (Y(), 2),
+        (boolean::fls(), 2),
+        (2.into_church(), 2),
+        (3.into_church(), 2),
+        (4.into_church(), 2),
+        (pred(), 5),
+    ];
+    for (term, expected) in results {
+        let result = max_depth(&term);
+        assert_eq!(
+            result, expected,
+            "max_depth of {:?} should be {}",
+            term, expected
+        );
+    }
 }
 
 impl From<Term> for Diagram {
     fn from(term: Term) -> Self {
         fn render(term: Term, max_depth: usize, depth: usize) -> Diagram {
             match term {
-                App(box (lhs, rhs)) => {
-                    let lhs_diagram = Diagram::from(lhs.clone());
-                    let rhs_diagram = Diagram::from(rhs.clone());
+                App(boxed) => {
+                    let (lhs, rhs) = boxed.as_ref();
+                    let lhs_diagram = render(lhs.clone(), max_depth, depth);
+                    let rhs_diagram = render(rhs.clone(), max_depth, depth);
                     debugln!("{:?} MERGE {:?}", lhs, rhs);
                     debugln!("LHS Diagram:\n{}", lhs_diagram);
                     debugln!("RHS Diagram:\n{}", rhs_diagram);
@@ -148,18 +158,17 @@ impl From<Term> for Diagram {
                     debugln!("\n");
                     result
                 }
-                Abs(box body) => {
+                Abs(boxed) => {
+                    let body = boxed.as_ref();
                     let depth = depth + 1;
-                    debugln!("{} - {}", max_depth, depth);
-                    let reverse_depth = max_depth - depth;
-                    let body_variables = variable_connections(&body);
+                    let body_variables = variable_connections(&body, depth);
                     let body_diagram = render(body.clone(), max_depth, depth);
                     debugln!(
-                        "ABSTRACT {:?} Variables: {:?}; Depth: {} (rev {}, max {})",
+                        "ABSTRACT {:?} Variables: {:?}; Depth: (real {} rev {} max {})",
                         body,
                         body_variables,
                         depth,
-                        reverse_depth,
+                        max_depth - depth,
                         max_depth
                     );
                     debugln!("Body diagram: \n{}", body_diagram);
@@ -172,8 +181,16 @@ impl From<Term> for Diagram {
                     for (i, row) in body_diagram.cells.iter().enumerate() {
                         result.cells[i + 2][..body_diagram.width()].copy_from_slice(row);
                     }
+                    debugln!(
+                        "Variables [(wants connection to, index)]: {:?}",
+                        body_variables
+                            .clone()
+                            .into_iter()
+                            .map(|(depth, index)| (depth - index, index))
+                            .collect::<Vec<_>>()
+                    );
                     // Check variables that connect to this application or to another one above
-                    for (i, &connection) in body_variables.iter().enumerate() {
+                    for (i, &(depth_of_variable, index)) in body_variables.iter().enumerate() {
                         // if let Some(index) = connection {
                         //     debugln!(
                         //         "Connection: {} at {}: {} < {} ?",
@@ -183,14 +200,12 @@ impl From<Term> for Diagram {
                         //         (depth as isize)
                         //     );
                         // }
-                        match connection {
-                            Some(index) if index > reverse_depth => {
-                                let position = 1 + (i * 4);
-                                result.cells[1][position] = '.';
-                            }
-                            _ => (),
+                        if depth_of_variable - index <= depth - 1 {
+                            let position = 1 + (i * 4);
+                            result.cells[1][position] = '.';
                         }
                     }
+                    debugln!("Final diagram: \n{}", result);
                     debugln!("\n");
                     result
                 }
@@ -202,7 +217,9 @@ impl From<Term> for Diagram {
                 }
             }
         }
-        render(term.clone(), max_depth(&term), 0)
+        let d = render(term.clone(), max_depth(&term), 0);
+        debugln!("\n");
+        d
     }
 }
 
