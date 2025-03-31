@@ -4,6 +4,7 @@ use lambda_calculus::{
     *,
 };
 use std::fmt::Display;
+use wasm_bindgen::prelude::*;
 
 const DEBUG: bool = false;
 
@@ -13,37 +14,6 @@ macro_rules! debugln {
             if DEBUG { println!($($arg)*); }
         }
     };
-}
-
-fn main() {
-    // let term: Term = parse("λλ21(λλ1)", DeBruijn).expect("Failed to parse term");
-    // if term.has_free_variables() {
-    //     panic!("Term has free variables");
-    // }
-    // println!("Rendering {:?}", term);
-    // let diagram: Diagram = term.into();
-    // println!("Width: {}, Height: {}", diagram.width(), diagram.height());
-    // println!("{}", diagram);
-    // println!("{}", Diagram::from(4.into_church()))
-    // println!("{}", Diagram::from())
-    let terms = vec![
-        // I(),
-        // K(),
-        // boolean::fls(),
-        // S(),
-        // Y(),
-        // parse("λf.(λx.x x)(λx.f(x x))", Classic).unwrap(),
-        // 2.into_church(),
-        // 3.into_church(),
-        // 4.into_church(),
-        pred(),
-        parse("λn.λf.n(λf.λn.n(f(λf.λx.n f(f x))))(λx.f)(λx.x)", Classic).unwrap(),
-        parse("(λ11)(λ11)", DeBruijn).unwrap(),
-    ];
-    for term in terms {
-        println!("{0} = {0:?}", term);
-        println!("{}", Diagram::from(term))
-    }
 }
 
 /// Returns array of (number of abstractions the variable is under, debruijn index)
@@ -61,8 +31,41 @@ fn variable_connections(term: &Term, depth: usize) -> Vec<(usize, usize)> {
     }
 }
 
-struct Diagram {
+#[wasm_bindgen]
+pub struct Diagram {
     cells: Vec<Vec<char>>,
+}
+
+#[wasm_bindgen]
+pub fn cells_of_diagram(diagram: &Diagram) -> String {
+    let mut result = String::new();
+    for row in &diagram.cells {
+        for cell in row {
+            if *cell == ' ' {
+                result.push(' ');
+            } else {
+                result.push('.');
+            }
+        }
+        result.push('\n');
+    }
+    result
+}
+
+#[wasm_bindgen]
+pub fn render_from_debrujin(expression: String) -> Diagram {
+    let term = parse(&expression, DeBruijn).unwrap();
+    let diagram = Diagram::from(term);
+    debugln!("Final diagram: \n{}", diagram);
+    diagram
+}
+
+#[wasm_bindgen]
+pub fn render_from_classic(expression: String) -> Diagram {
+    let term = parse(&expression, Classic).unwrap();
+    let diagram = Diagram::from(term);
+    debugln!("Final diagram: \n{}", diagram);
+    diagram
 }
 
 impl Display for Diagram {

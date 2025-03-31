@@ -2,6 +2,16 @@
 name = "trompyst"
 version = "0.1.0"
 edition = "2024"
+description = "A renderer for Tromp diagrams, a way to visualize lambda calculus closed terms by John Tromp."
+repository = "https://github.com/gwennlbh/trompyst"
+license = "MIT"
 
 [dependencies]
 lambda_calculus = "3.3.0"
+wasm-bindgen = "0.2.100"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.50"
