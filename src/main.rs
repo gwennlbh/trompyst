@@ -336,3 +336,25 @@ fn test_3() {
             + "\n"
     );
 }
+
+#[test]
+fn test_omega() {
+    let term = parse("(λ11)(λ11)", DeBruijn).unwrap();
+    let diagram = Diagram::from(term);
+    let resultstring = diagram.to_string().replace("\u{2588}", ".");
+    assert_eq!(
+        resultstring,
+        vec![
+            "....... .......",
+            " .   .   .   . ",
+            " .   .   .   . ",
+            " .   .   .   . ",
+            " .....   ..... ",
+            " .       .     ",
+            " .........     ",
+            " .             ",
+        ]
+        .join("\n")
+            + "\n"
+    );
+}
