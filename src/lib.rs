@@ -1,10 +1,12 @@
+use lambda_calculus::*;
+use std::fmt::Display;
+use wasm_bindgen::prelude::*;
+
+#[cfg(test)]
 use lambda_calculus::{
     combinators::{I, K, S, Y},
     data::{boolean, num::church::pred},
-    *,
 };
-use std::fmt::Display;
-use wasm_bindgen::prelude::*;
 
 const DEBUG: bool = false;
 
