@@ -1,0 +1,21 @@
+{
+  "name": "trompyst",
+  "type": "module",
+  "description": "A renderer for Tromp diagrams, a way to visualize lambda calculus closed terms by John Tromp.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gwennlbh/trompyst"
+  },
+  "files": [
+    "trompyst_bg.wasm",
+    "trompyst.js",
+    "trompyst.d.ts"
+  ],
+  "main": "trompyst.js",
+  "types": "trompyst.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
