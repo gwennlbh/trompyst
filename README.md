@@ -12,7 +12,7 @@ Currently:
     - [x] Pred
     - [x] Omega
 - [ ] Rust library
-- [ ] WASM library
+- [x] WASM library
 - [ ] JS library
-- [ ] JS online playground
+- [x] JS online playground
 - [ ] Typst package
